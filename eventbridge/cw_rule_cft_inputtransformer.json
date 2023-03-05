@@ -1,0 +1,58 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "CloudFormation Template for EventBridge rule 'IputTransformer with containerOverrides'",
+	"Resources": {
+	  "EventRule0": {
+		"Type": "AWS::Events::Rule",
+		"Properties": {
+		  "EventBusName": "default",
+		  "EventPattern": {
+			"source": ["aws.s3"]
+		  },
+		  "Name": "eventbridge-with-ecs-inputtransformer1",
+		  "State": "ENABLED",
+		  "Targets": [{
+			"Id": "Id440d5adf-1b49-42b7-b355-74335364c278",
+			"Arn": "arn:aws:lambda:us-east-1:${AWS_ACCOUNT_ID}:function:eventbridge-lambda",
+			"DeadLetterConfig": {
+				"Arn": "arn:aws:sqs:us-east-1:${AWS_ACCOUNT_ID}:ecs-sys-dlq"
+			  }
+		  }, {
+			"Id": "Id5f43ed33-5b1d-4dff-ad74-bcfb47e3892f",
+			"Arn": "arn:aws:logs:us-east-1:${AWS_ACCOUNT_ID}:log-group:/aws/events/eventbridge-log",
+			"DeadLetterConfig": {
+				"Arn": "arn:aws:sqs:us-east-1:${AWS_ACCOUNT_ID}:ecs-sys-dlq"
+			}
+		  }, {
+			"Id": "Id939c4bbb-4741-4c0e-855a-eaa607a43671",
+			"Arn": "arn:aws:ecs:us-east-1:${AWS_ACCOUNT_ID}:cluster/my-cluster",
+			"RoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/service-role/Amazon_EventBridge_Invoke_ECS_1561002558",
+			"InputTransformer": {
+				"InputPathsMap": {
+					"bucketname": "$.detail.bucket.name",
+					"eventname": "$.detail.reason",
+					"keyname": "$.detail.object.key"
+				  },
+				  "InputTemplate": "{\"containerOverrides\": [{\"name\":\"eventbridge-ecs\",\"environment\":[{\"name\":\"S3_REASON\",\"value\":<eventname>},{ \"name\":\"S3_BUCKET_NAME\",\"value\":<bucketname> },{ \"name\":\"S3_KEY\",\"value\":<keyname> }]}]}"
+            },
+			"EcsParameters": {
+			  "TaskDefinitionArn": "arn:aws:ecs:us-east-1:${AWS_ACCOUNT_ID}:task-definition/eventbridge-ecs",
+			  "TaskCount": 1,
+			  "LaunchType": "FARGATE",
+			  "NetworkConfiguration": {
+				"AwsVpcConfiguration": {
+				  "Subnets": ["subnet-064e0a5d290e34875", "subnet-022b0c0e8fabfe6e0", "subnet-09dd993ed97fbdb4a", "subnet-0532d40c3ea816053", "subnet-0481e9acee7f8bf32", "subnet-07675866813856d8e"],
+				  "AssignPublicIp": "ENABLED"
+				}
+			  },
+			  "EnableECSManagedTags": true,
+			  "EnableExecuteCommand": false
+			},
+			"DeadLetterConfig": {
+			  "Arn": "arn:aws:sqs:us-east-1:${AWS_ACCOUNT_ID}:ecs-sys-dlq"
+			}
+		  }]
+		}
+	  }
+	}
+  }

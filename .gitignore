@@ -1,0 +1,4 @@
+.env
+eventbridge/cw_rule_cft_inputtransformer_updated.json
+logging_ecs_service/ecs-task-definition-updated.json
+.DS_Store
