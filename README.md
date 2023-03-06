@@ -1,16 +1,15 @@
 ## EventBridge ECS Logger
 
-This EventBridge sample showcases the capabilities of the eventbridge, in this sample the eventbridge will listen for an s3 event and trigger 3 targets 
+This sample showcases the capabilities of an EventBridge Rule, in this sample the EventBridge rule will listen for any s3 event and trigger 3 targets:
 
-1.  log the event to cloudwatch logs
-2.  call a lambda passing the event to the lamdba, the lambda logs the the event to cloudwatch logs
-3.  calls an ecs task with custom parameters:  S3\_BUCKET, S3\_KEY, and S3\_REASON
+1.  log the event to CloudWatch logs - (Matched Event)
+2.  calls a lambda - passing the s3 event to the lamdba and logs the the event to cloudwatch logs - (Matched Event)
+3.  calls an ecs task with custom parameters:  S3\_BUCKET, S3\_KEY, and S3\_REASON (InputTransformer)
 
-When an s3 event is sent to EventBridge, CloudWatch log and Lambdas functions pass events natively to the components. However, when EventBridges calls an ECS task, the parameters need to become environment variables so the parameters can be passed into the docker container.  For the docker to act on the S3\_BUCKET, S3\_KEY, and S3\_REASON an InputTransformer is required to pass environment variabls. The InputTransformer is a critical component in passing parameters to an ECS task through EventBridge, as it allows the incoming event to be properly converted into parameters that can be passed to the Docker container environment variabls. In the sample below the input transformer is converting the s3 event , bucket and key into parameters for the eventbridge-ecs task. 
+As defined in this cft - [eventbridge/cw\_rule\_cft\_inputtransformer.json](eventbridge/cw_rule_cft_inputtransformer.json) all s3 events  triggered by the EventBridge Rule will call 3 different targets. CloudWatch log and Lambdas functions pass events natively to the components, so no custom code was required. These two components receive the data with what AWS refers to as a “matched pattern” as seen in the console.  However, when the EventBridge is required to send parameters from an EventBridge Rule to an ECS task by utilizing an InputTransformer as a a conduit between the two components. The InputTransformer is a critical component in passing parameters to an ECS task through EventBridge, as it allows the incoming event to be properly converted into parameters that can be passed to the Docker container environment variabls.   
+ 
 
-For more information on InputTransformers:  
-    [https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-input-transformer-tutorial.html](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-input-transformer-tutorial.html)  
-    [https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-target-input.html](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-target-input.html)
+ [eventbridge/cw\_rule\_cft\_inputtransformer.json](eventbridge/cw_rule_cft_inputtransformer.json)
 
 ```plaintext
 "InputTransformer": {
@@ -19,10 +18,34 @@ For more information on InputTransformers:
         "eventname": "$.detail.reason",
         "keyname": "$.detail.object.key"
     },
-    "InputTemplate": "{\"containerOverrides\": [{\"name\":\"eventbridge-ecs\",\"environment\":[{\"name\":\"S3_REASON\",\"value\":<eventname>},
-        { \"name\":\"S3_BUCKET_NAME\",\"value\":<bucketname> },{ \"name\":\"S3_KEY\",\"value\":<keyname> }]}]}"
-},
+    "InputTemplate": "{
+    \"containerOverrides\": [
+    	{\"name\":\"eventbridge-ecs\"
+    	,\"environment\":[
+    	{\"name\":\"S3_REASON\",\"value\":<eventname>},
+        {\"name\":\"S3_BUCKET_NAME\",\"value\":<bucketname> },
+        { \"name\":\"S3_KEY\",\"value\":<keyname> 
+    }]}]}"
+},...
 ```
+
+In the sample above the InputTransformer is extracting from the s3 event, the bucket, key and reason into parameters for the eventbridge-ecs task.  A couple of key items to be careful of, the containerOverrides\[0\].name has be the match your ecs-task-definition (below), in this case 'eventbridge-ecs'. Secondly the InputTemplate json needs to be escaped. IMHO this was a bit messy and over complicates the situation but hey, once you get the escaped syntax aligned, its not too bad. 
+
+ [logging\_ecs\_service/ecs-task-definition.json](logging_ecs_service/ecs-task-definition.json)
+
+```plaintext
+"family": "eventbridge-ecs",
+"containerDefinitions": [
+   {
+      "name": "eventbridge-ecs",
+      ....
+   }]
+...
+```
+
+For more information on InputTransformers:  
+    [https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-input-transformer-tutorial.html](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-input-transformer-tutorial.html)  
+    [https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-target-input.html](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-target-input.html)
 
 Prerequisites
 
